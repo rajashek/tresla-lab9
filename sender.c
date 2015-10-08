@@ -1,10 +1,25 @@
 #include "sniffer.h"
 #include <assert.h>
+#define APP_NAME "Tresla"
 #define SIZE_ETHERNET 14
 #define SIZE_TRESLA_LAYER3 sizeof(struct tresla_layer3)
 #define ETHER_TYPE_DEFAULT 0x0001
+void print_usage(void)
+{
+
+        printf("Usage: %s [interface][path]\n", APP_NAME);
+        printf("\n");
+        printf("Options:\n");
+        printf("    interface    IP address of outgoing <interface> \n");
+        printf("    path of send packets (source interface) \n");
+        printf("\n");
+	return;
+}
+
 int main(int argc, char **argv){
 	char *interface = (char *)malloc(6*sizeof(char));
+	char *path = (char *)malloc(20*sizeof(char));
+	char *dup,*token;
 	struct ethernet *eth_head;
 	struct tresla_layer3 *tlayer3_head;
 	void* snd_buffer = NULL;
@@ -13,10 +28,24 @@ int main(int argc, char **argv){
 	struct sockaddr_ll sa;
 	int sockfd=-1;
 	struct ifreq ifr;
+	uint8_t src_route_path[10];
 	memset(snd_buffer, 0, BUF_SIZE);
-	if(argc > 1){
+	int no_of_hops=0,i=0;
+	if(argc > 2){
 		memcpy(interface,argv[1],strlen(argv[1]));
-		printf("output interface %s \n",interface);
+		printf("output interface %s \n", interface);
+		memcpy(path,argv[2],strlen(argv[2]));
+		dup = strdup(path);
+		while ((token = strtok(dup, ",")) != NULL) {
+        
+        		src_route_path[no_of_hops] = (uint8_t)atoi(token);
+        		dup = NULL;
+			no_of_hops++;
+    		}
+	}
+	else{
+		print_usage();
+		exit(0);
 	}
 	sockfd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_802_3));	
 	if(sockfd == -1) {
@@ -46,9 +75,10 @@ int main(int argc, char **argv){
 	eth_head->ether_type = htons(ETHER_TYPE_DEFAULT);
 	tlayer3_head = (struct tresla_layer3*)(snd_buffer + SIZE_ETHERNET);
 	tlayer3_head->ttl = 0x00;
-	tlayer3_head->source_routing[0]=0x04;
-	tlayer3_head->source_routing[1]=0x01;
-	
+	for(i=0; i<no_of_hops; i++){
+		tlayer3_head->source_routing[i]=src_route_path[i];
+		tlayer3_head->source_routing[i]=src_route_path[i];
+	}
 	uint16_t rvalue;
 	rvalue = sendto(sockfd, snd_buffer, BUF_SIZE, 0,(struct sockaddr *)&sa, sizeof(sa));
         if( rvalue < 0 )
