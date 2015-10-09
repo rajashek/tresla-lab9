@@ -51,7 +51,7 @@ int main(int argc, const char * argv[]) {
     
     // Read Source
     if (strcmp("-src", argv[1]) == 0) {
-        l2->saddr = htons((uint16_t) atoi(argv[2]));
+        l2->original_source_addr = htons((uint16_t) atoi(argv[2]));
     }
     else {
         print_usage();
@@ -125,27 +125,35 @@ int main(int argc, const char * argv[]) {
     const u_char *sniff_packet;
     
     struct layer2 *sniff_l2;
-    struct layer4_icmp *sniff_icmp;
+    struct layer3 *sniff_l3;
+    struct layer4_icmp *sniff_l4_icmp;
     
     while (1) {
         
         sniff_packet = pcap_next(handle, &header);
         
         if (header.len >= (sizeof(struct layer2) + sizeof(struct layer3) + sizeof(struct layer4_icmp))) {
-            
             sniff_l2 = (struct layer2 *) sniff_packet;
-            sniff_icmp = (struct layer4_icmp *) (sniff_packet + sizeof(struct layer2) + sizeof(struct layer3));
             
-            if (ntohs(sniff_l2->saddr) != ntohs(l2->saddr)) { // Source Address is not me
-                if (ntohs(sniff_icmp->type) == 0) {
+            if (ntohs(sniff_l2->original_source_addr) != ntohs(l2->original_source_addr)) { // Source Address is not me
+                sniff_l3 = (struct layer3 *) (sniff_packet + sizeof(struct layer2));
+                
+                if (sniff_l3->type == TYPE_ICMP) {
+                    sniff_l4_icmp = (struct layer4_icmp *) (sniff_packet + sizeof(struct layer2) + sizeof(struct layer3));
                     
-                    printf("Ping from %d seq=%d\n", ntohs(sniff_l2->saddr), ntohs(sniff_icmp->seq));
                     
-                    memcpy((u_char *) sniff_packet, packet, sizeof(struct layer2) + sizeof(struct layer3));
-                    sniff_icmp->type = htons(1);
+                    if (ntohs(sniff_l4_icmp->type) == TYPE_ICMP_PING_REQUEST) {
+                        
+                        printf("Ping from %d seq=%d\n", ntohs(sniff_l2->original_source_addr), ntohs(sniff_l4_icmp->seq));
+                        
+                        memcpy((u_char *) sniff_packet, packet, sizeof(struct layer2) + sizeof(struct layer3));
+                        sniff_l4_icmp->type = htons(TYPE_ICMP_PING_REPLY);
+                        
+                        send(sockfd, sniff_packet, header.len, 0);
+                    }
                     
-                    send(sockfd, sniff_packet, header.len, 0);
                 }
+                
             }
             
         }

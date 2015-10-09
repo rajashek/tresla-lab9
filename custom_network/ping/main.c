@@ -57,7 +57,7 @@ int main(int argc, const char * argv[]) {
     
     // Read Source
     if (strcmp("-src", argv[1]) == 0) {
-        l2->saddr = htons((uint16_t) atoi(argv[2]));
+        l2->original_source_addr = htons((uint16_t) atoi(argv[2]));
     }
     else {
         print_usage();
@@ -141,7 +141,10 @@ int main(int argc, const char * argv[]) {
     
     struct pcap_pkthdr header;
     const u_char *sniff_packet;
-    struct layer4_icmp *sniff_icmp;
+    
+    struct layer2 *sniff_l2;
+    struct layer3 *sniff_l3;
+    struct layer4_icmp *sniff_l4_icmp;
     
     while (1) {
         
@@ -151,25 +154,34 @@ int main(int argc, const char * argv[]) {
         time_recv = spec.tv_sec + spec.tv_nsec / 1.0e9;
         
         if (header.len >= (sizeof(struct layer2) + sizeof(struct layer3) + sizeof(struct layer4_icmp))) {
-            sniff_icmp = (struct layer4_icmp *) (sniff_packet + sizeof(struct layer2) + sizeof(struct layer3));
-            if ((ntohs(sniff_icmp->type) == 1) && (ntohs(sniff_icmp->seq) == i)) {
+            sniff_l2 = (struct layer2 *) sniff_packet;
+            
+            if (ntohs(sniff_l2->original_source_addr) != ntohs(l2->original_source_addr)) { // Source Address is not me
+                sniff_l3 = (struct layer3 *) (sniff_packet + sizeof(struct layer2));
                 
-                printf("Ping to %d seq=%d time=%Lfms\n", ntohs(l2->saddr), i, (time_recv - time_send)*1000);
-                
-                
-                sleep(1);
-                l4->seq = htons(++i);
-                if ((len = send(sockfd, packet, sizeof(packet), 0)) < 0) {
-                    fprintf(stderr, "Error: Cannot send packet\n");
+                if (sniff_l3->type == TYPE_ICMP) {
+                    sniff_l4_icmp = (struct layer4_icmp *) (sniff_packet + sizeof(struct layer2) + sizeof(struct layer3));
+                    
+                    if ((ntohs(sniff_l4_icmp->type) == TYPE_ICMP_PING_REPLY) && (ntohs(sniff_l4_icmp->seq) == i)) {
+                        
+                        printf("Ping to %d seq=%d time=%Lfms\n", ntohs(l2->original_source_addr), i, (time_recv - time_send)*1000);
+                        
+                        sleep(1);
+                        l4->seq = htons(++i);
+                        if ((len = send(sockfd, packet, sizeof(packet), 0)) < 0) {
+                            fprintf(stderr, "Error: Cannot send packet\n");
+                        }
+                        clock_gettime(CLOCK_REALTIME, &spec);
+                        time_send = spec.tv_sec + spec.tv_nsec / 1.0e9;
+                        
+                    }
+                    
                 }
-                clock_gettime(CLOCK_REALTIME, &spec);
-                time_send = spec.tv_sec + spec.tv_nsec / 1.0e9;
+                
             }
         }
         
     }
-    
-    //pcap_loop(handle, -1, got_packet, NULL);
     
     return 0;
 }
