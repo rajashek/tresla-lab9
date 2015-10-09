@@ -12,33 +12,25 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-
 #include "interface.h"
-//#include "config.h"
 #include "route.h"
-//#include "arp.h"
 #include "sniffer.h"
 
 #define _VERBOSE
 
 int main(int argc, const char * argv[]) {
     
-    int i, j, k;
-    FILE *file;
-    char *arg_interface;
+    int i,j;
+    char *arg_interface = NULL;
     char *token, *dup;
     
     int num_input_interfaces = 0;
     struct interface *input_interface;
-//    int num_routes = 3;
-    struct route *routes;
-    
     
     // Read command line arguments
     if (strcmp("-i", argv[1]) == 0) {
         arg_interface = strdup(argv[2]);
     }
-    
    
     /*
      * CPU Prioritization
@@ -61,10 +53,10 @@ int main(int argc, const char * argv[]) {
 		num_input_interfaces++;
     }
     num_input_interfaces++;
-    
-    
+    int num_output_ifs = num_input_interfaces;
     // Allocate input interface array
     input_interface = (struct interface *) malloc(num_input_interfaces * sizeof(struct interface));
+    struct route **output_interfaces = (struct route **)malloc(num_input_interfaces*sizeof(struct route *));
     
     // Parse input interfaces
     num_input_interfaces = 0;
@@ -82,6 +74,14 @@ int main(int argc, const char * argv[]) {
         dup = NULL;
         
     }
+    for (i=0; i<num_output_ifs; i++){
+    	output_interfaces[i] = (struct route *)malloc(num_output_ifs*sizeof(struct route ));
+	for(j=0; j<num_output_ifs; j++){
+		strcpy(output_interfaces[i][j].interface.interface_name,input_interface[j].interface_name);
+		fill_interface_info(&output_interfaces[i][j].interface);
+	}
+
+    }
     
     free(arg_interface);
     
@@ -96,8 +96,6 @@ int main(int argc, const char * argv[]) {
     }
     fprintf(stderr, "\n");
     #endif
-    
-    
 
     /*
      * Start packet sniffing threads
@@ -110,24 +108,13 @@ int main(int argc, const char * argv[]) {
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
     
     struct sniffer_thread_parameter params[num_input_interfaces];
-    struct route **output_interfaces = (struct route **)malloc(sizeof(struct route *));
-    output_interfaces[0] = (struct route *)malloc(3*sizeof(struct route ));
-    strcpy(output_interfaces[0][0].interface.interface_name,"eth1");
-    strcpy(output_interfaces[0][1].interface.interface_name,"eth2");
-    strcpy(output_interfaces[0][2].interface.interface_name,"eth4");
-    for (i=0;i<3;i++){
-	fill_interface_info(&output_interfaces[0][i].interface);
-   }
     for (i=0; i<num_input_interfaces; i++) {
         fprintf(stderr, "[Start sniffer #%d]\n", i+1);
         
-        
+        params[i].num_ifs = num_output_ifs; 
         params[i].sniff_interface = &input_interface[i];
-        //params[i].num_routes = &num_installed_routes[i];
         params[i].routes = &output_interfaces[i];
 	
-        //params[i].arp_table_root = &arp_table_root;
-        
         if (pthread_create(&thread[i], &attr, sniffer_thread, (void *) &params[i]) < 0) {
             fprintf(stderr, "Error: Can not create a thread for the sniffer_thread in main()\n");
         }

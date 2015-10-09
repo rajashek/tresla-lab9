@@ -17,10 +17,11 @@ void *sniffer_thread(void *params) {
     char errbuf[PCAP_ERRBUF_SIZE];		/* error buffer */
     pcap_t *handle;                     /* packet capture handle */
     
-    char filter_exp[64] = " ";                /* filter expression [3] */
-  //  sprintf(filter_exp, "ip and ether dst %.2x:%.2x:%.2x:%.2x:%.2x:%.2x", PRINT_MAC(sniff_interface->interface_macaddress));
+   //char filter_exp[64];                /* filter expression [3] */
+   //strcpy(filter_exp,"ip");
+   // sprintf(filter_exp, "ip and ether dst %.2x:%.2x:%.2x:%.2x:%.2x:%.2x", PRINT_MAC(sniff_interface->interface_macaddress));
     
-    struct bpf_program fp;              /* compiled filter program (expression) */
+  // struct bpf_program fp;             /* compiled filter program (expression) */
     
     struct got_packet_parameter got_packet_param;
     struct sockaddr_ll sa_in, sa_out[3];
@@ -41,16 +42,16 @@ void *sniffer_thread(void *params) {
     }
 
     /* compile the filter expression */
-    if (pcap_compile(handle, &fp, filter_exp, 0, sniff_interface->interface_netaddress) == -1) {
+  /*if (pcap_compile(handle, &fp, filter_exp, 0, sniff_interface->interface_netaddress) == -1) {
         fprintf(stderr, "Couldn't parse filter %s: %s\n", filter_exp, pcap_geterr(handle));
         exit(EXIT_FAILURE);
-    }
+    }*/
     
     /* apply the compiled filter */
-    if (pcap_setfilter(handle, &fp) == -1) {
+   /*if (pcap_setfilter(handle, &fp) == -1) {
         fprintf(stderr, "Couldn't install filter %s: %s\n", filter_exp, pcap_geterr(handle));
         exit(EXIT_FAILURE);
-    }
+    }*/
     
     // Open socket for sniffing interface
     sa_in.sll_family = PF_PACKET;
@@ -65,15 +66,17 @@ void *sniffer_thread(void *params) {
     if (sniff_interface->sockfd == -1) {
         fprintf(stderr, "Cannot create raw socket for sniffing interface in sniffer_thread\n");
         fprintf(stderr, "%s\n", strerror(errno));
+	exit(-1);
     }
-    
-    if (bind(sniff_interface->sockfd, (struct sockaddr *)&sa_in, sizeof(sa_in)) != 0){  //WARNING
-        fprintf(stderr, "Cannot bind to raw socket for sniffing interface in sniffer_thread\n");
-	 fprintf(stderr, "%s\n", strerror(errno));
-    }
+    else{
+    	if (bind(sniff_interface->sockfd, (struct sockaddr *)&sa_in, sizeof(sa_in)) != 0){  //WARNING
+        	fprintf(stderr, "Cannot bind to raw socket for sniffing interface in sniffer_thread\n");
+	 	fprintf(stderr, "%s\n", strerror(errno));
+    	}
+
     
     // Open socket for all output interface
-    for (i=0; i<3; i++) {
+    for (i=0; i<p->num_ifs; i++) {
         
         sa_out[i].sll_family = PF_PACKET;
         sa_out[i].sll_ifindex = (*routes)[i].interface.interface_index;
@@ -89,19 +92,21 @@ void *sniffer_thread(void *params) {
         if ((*routes)[i].interface.sockfd == -1) {
             fprintf(stderr, "Cannot create raw socket for output interface in sniffer_thread\n");
             fprintf(stderr, "%s\n", strerror(errno));
+            exit(-1);
+	}
+    	else{
+       		printf("opened socket  %d \n",(*routes)[i].interface.sockfd); 
+        	if (bind((*routes)[i].interface.sockfd, (struct sockaddr *)&sa_out[i], sizeof(sa_out[i])) != 0){  //WARNING
+       		     	fprintf(stderr, "Cannot bind to raw socket for output interface in sniffer_thread\n");
+        	}
         }
-    
-       	printf("opened socket  %d \n",(*routes)[i].interface.sockfd); 
-        if (bind((*routes)[i].interface.sockfd, (struct sockaddr *)&sa_out[i], sizeof(sa_out[i])) != 0){  //WARNING
-            fprintf(stderr, "Cannot bind to raw socket for output interface in sniffer_thread\n");
-        }
-        
     }
-    
+    }
     // Parse information to got_packet handler
     got_packet_param.sniff_interface = sniff_interface;
     //got_packet_param.num_routes = num_routes;
     got_packet_param.routes = routes;
+    got_packet_param.num_ifs = p->num_ifs;
     //got_packet_param.arp_table_root = arp_table_root;
 
 
@@ -109,7 +114,7 @@ void *sniffer_thread(void *params) {
 
     
     /* cleanup */
-    pcap_freecode(&fp);
+   //pcap_freecode(&fp);
     pcap_close(handle);
 
     fprintf(stderr, "\nCapture complete.\n");
@@ -124,24 +129,25 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
     // declare pointers to packet headers
     struct sniff_ethernet *ethernet;  /* The ethernet header [1] */
     struct sniff_ip *ip;              /* The IP header */
-    struct icmpheader *icmp;
+    //struct icmpheader *icmp;
     struct ifreq ifr;
     struct got_packet_parameter *got_packet_param;
     
-    struct interface *sniff_interface;
+    //struct interface *sniff_interface;
     struct route *routes;
     
     int i;
-    int size_ip_header;
+    //int size_ip_header;
     
-    u_char *dst_macaddr;
+    //u_char *dst_macaddr;
     
-    ssize_t len;
+    //ssize_t len;
     uint8_t op_interface;    
     // Note: header-> len is size of a whole ethernet frame
     
     got_packet_param = (struct got_packet_parameter *) args;
-    sniff_interface = got_packet_param->sniff_interface;
+    int num_ifs = got_packet_param->num_ifs;
+   // sniff_interface = got_packet_param->sniff_interface;
     routes = *got_packet_param->routes;
 
     // define ethernet header
@@ -177,7 +183,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
         //print_payload(packet, header->caplen);
         int n;
 	int snd_sock=-1;
-	for(i=0;i<3;i++){
+	for(i=0;i<num_ifs;i++){
 		if(routes[i].interface.interface_index==ifr.ifr_ifindex)
 			snd_sock = routes[i].interface.sockfd;
 	}
@@ -186,7 +192,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
             printf("$$$$$$$$$ ..... %s",strerror(errno));
         }
         printf(" 	The packets sent size %d\n", header->len);
-        printf(" %%%%%%......  %d\n", sizeof(struct sniff_ip));
+        printf(" %%%%%%......  %lu\n", sizeof(struct sniff_ip));
         return;
         
 }
@@ -195,7 +201,6 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
     // Decrease TTL
         
     /*if (unlikely(ip->ip_ttl == 0)) {
-
         // Send time exceeded icmp to the source
         icmp = (struct icmpheader *)(packet + SIZE_ETHERNET + size_ip_header);
         memcpy(((u_char *)icmp) + SIZE_ICMP, ip, size_ip_header+8);
@@ -239,7 +244,6 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
     }
     return i;
 }
-
 u_short ip_checksum(u_short *ptr, int nbytes) {
     // Create Checksum of IP header (Modified version)
     // original: http://www.binarytides.com/raw-udp-sockets-c-linux/
@@ -260,6 +264,5 @@ u_short ip_checksum(u_short *ptr, int nbytes) {
     
     sum = (sum>>16)+(sum & 0xffff);
     sum = sum + (sum>>16);
-
     return htons((u_short)~sum);
 }*/
