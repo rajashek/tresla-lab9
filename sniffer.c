@@ -41,6 +41,11 @@ void *sniffer_thread(void *params) {
         exit(EXIT_FAILURE);
     }
 
+    if (pcap_setdirection(handle,PCAP_D_IN)!=0) {
+        fprintf(stderr, "error in setting direction for %s\n", sniff_interface->interface_name);
+        exit(EXIT_FAILURE);
+    }
+
     /* compile the filter expression */
   /*if (pcap_compile(handle, &fp, filter_exp, 0, sniff_interface->interface_netaddress) == -1) {
         fprintf(stderr, "Couldn't parse filter %s: %s\n", filter_exp, pcap_geterr(handle));
@@ -57,12 +62,12 @@ void *sniffer_thread(void *params) {
     sa_in.sll_family = PF_PACKET;
     sa_in.sll_ifindex = sniff_interface->interface_index;
     sa_in.sll_halen = ETHER_ADDR_LEN;
-    sa_in.sll_protocol = htons(ETH_P_802_3);
+    sa_in.sll_protocol = htons(ETH_P_ALL);
     sa_in.sll_hatype = 0;
     sa_in.sll_pkttype = 0;
     memcpy(sa_in.sll_addr, sniff_interface->interface_macaddress, ETHER_ADDR_LEN);
-    sniff_interface->sockfd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_802_3));
-    printf(" sniff socket %d \n",sniff_interface->sockfd);
+    sniff_interface->sockfd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+    //printf(" sniff socket %d \n",sniff_interface->sockfd);
     if (sniff_interface->sockfd == -1) {
         fprintf(stderr, "Cannot create raw socket for sniffing interface in sniffer_thread\n");
         fprintf(stderr, "%s\n", strerror(errno));
@@ -81,21 +86,21 @@ void *sniffer_thread(void *params) {
         sa_out[i].sll_family = PF_PACKET;
         sa_out[i].sll_ifindex = (*routes)[i].interface.interface_index;
         //sa_out[i].sll_ifindex = 4;
-        printf(" opened socket ifindex %d \n",sa_out[i].sll_ifindex);
+        //printf(" opened socket ifindex %d \n",sa_out[i].sll_ifindex);
 	sa_out[i].sll_halen = ETHER_ADDR_LEN;
-        sa_out[i].sll_protocol = htons(ETH_P_802_3);
+        sa_out[i].sll_protocol = htons(ETH_P_ALL);
         sa_out[i].sll_hatype = 0;
         sa_out[i].sll_pkttype = 0;
         memcpy(sa_out[i].sll_addr, (*routes)[i].interface.interface_macaddress, ETHER_ADDR_LEN);
-       	printf("opened socket ifname %s \n",(*routes)[i].interface.interface_name); 
-        (*routes)[i].interface.sockfd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_802_3));
+       	//printf("opened socket ifname %s \n",(*routes)[i].interface.interface_name); 
+        (*routes)[i].interface.sockfd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
         if ((*routes)[i].interface.sockfd == -1) {
             fprintf(stderr, "Cannot create raw socket for output interface in sniffer_thread\n");
             fprintf(stderr, "%s\n", strerror(errno));
             exit(-1);
 	}
     	else{
-       		printf("opened socket  %d \n",(*routes)[i].interface.sockfd); 
+       		//printf("opened socket  %d \n",(*routes)[i].interface.sockfd); 
         	if (bind((*routes)[i].interface.sockfd, (struct sockaddr *)&sa_out[i], sizeof(sa_out[i])) != 0){  //WARNING
        		     	fprintf(stderr, "Cannot bind to raw socket for output interface in sniffer_thread\n");
         	}
@@ -129,25 +134,18 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
     // declare pointers to packet headers
     struct sniff_ethernet *ethernet;  /* The ethernet header [1] */
     struct sniff_ip *ip;              /* The IP header */
-    //struct icmpheader *icmp;
     struct ifreq ifr;
     struct got_packet_parameter *got_packet_param;
     
-    //struct interface *sniff_interface;
     struct route *routes;
     
     int i;
-    //int size_ip_header;
     
-    //u_char *dst_macaddr;
-    
-    //ssize_t len;
     uint8_t op_interface;    
     // Note: header-> len is size of a whole ethernet frame
     
     got_packet_param = (struct got_packet_parameter *) args;
     int num_ifs = got_packet_param->num_ifs;
-   // sniff_interface = got_packet_param->sniff_interface;
     routes = *got_packet_param->routes;
 
     // define ethernet header
@@ -163,19 +161,17 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
     }*/
     
         memset(&ifr, 0, sizeof(struct ifreq));
-	printf("ip->ttl %d\n",ip->ttl);
         op_interface = ip->source_routing[ip->ttl];
         ifr.ifr_ifindex =(int) op_interface;
 	ip->ttl++ ;
         //packet is not destined to router need to check the value of ttl and based on this
         // set the interface through which the packet needs to be pushed out
-	printf("ip->source_routing[ip->ttl] %d\n",ifr.ifr_ifindex);        
         struct sockaddr_ll addr={0};
         addr.sll_family=PF_PACKET;
         addr.sll_ifindex=ifr.ifr_ifindex;
         //addr.sll_ifindex=3;
         addr.sll_halen=ETHER_ADDR_LEN;
-        addr.sll_protocol=htons(ETH_P_802_3);
+        addr.sll_protocol=htons(ETH_P_ALL);
         addr.sll_hatype = 0;
         addr.sll_pkttype = 0;
         memcpy(addr.sll_addr, ethernet->ether_shost, ETHER_ADDR_LEN);
@@ -187,12 +183,12 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 		if(routes[i].interface.interface_index==ifr.ifr_ifindex)
 			snd_sock = routes[i].interface.sockfd;
 	}
-        printf("socket ..... %d",snd_sock);
-        if( (n=send(snd_sock,packet, 1500, 0) < 0)) {
-            printf("$$$$$$$$$ ..... %s",strerror(errno));
-        }
-        printf(" 	The packets sent size %d\n", header->len);
-        printf(" %%%%%%......  %lu\n", sizeof(struct sniff_ip));
+	if (snd_sock!=-1){
+        	if( (n=send(snd_sock,packet, header->len, 0) < 0)) {
+          		printf("%s",strerror(errno));
+        	}
+	}
+        //printf("The packet was sent successfully. Size of packet= %d\n", header->len);
         return;
         
 }
