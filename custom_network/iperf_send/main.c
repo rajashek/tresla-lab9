@@ -42,7 +42,7 @@ int main(int argc, const char * argv[]) {
     struct sockaddr_ll sa_in;
     ssize_t len;
 
-    struct timespec spec;
+    struct timespec spec, sleep;
     long double time_start, time_now;
     
     if (argc <= 8) {
@@ -148,7 +148,10 @@ int main(int argc, const char * argv[]) {
     time_start = spec.tv_sec + spec.tv_nsec / 1.0e9;
     time_now = time_start;
     
-    for (i=0; time_now-time_start<10; i++) {
+    sleep.tv_sec = 0;
+    sleep.tv_nsec = 1000;
+    
+    for (i=1; time_now-time_start<10; i++) {
         
         iperf->id = htonl(i);
         
@@ -157,12 +160,15 @@ int main(int argc, const char * argv[]) {
         clock_gettime(CLOCK_REALTIME, &spec);
         time_now = spec.tv_sec + spec.tv_nsec / 1.0e9;
         
-        usleep(100);
+        nanosleep(&sleep, NULL);
         
     }
     
-    printf("%d\n", i);
-           
+    iperf->id = 0xffffffff;
+    for (i = 0; i<20; i++) {
+        send(sockfd, packet, packetsize, 0);
+    }
+    
     return 0;
     
 }

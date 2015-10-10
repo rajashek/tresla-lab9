@@ -20,6 +20,7 @@ typedef unsigned char uchar_t;
 #define SOURCE_ADDR_LEN 2
 struct layer2 {
     uint16_t original_source_addr;
+    
 };
 
 // Routing
@@ -46,20 +47,9 @@ struct layer4_udp {
     uint16_t len;
 };
 
-#define ID_LEN		3
-#define MAX_LENGTH	1450
-struct layer4 {
-    uint8_t  port;          // sport & dport
-    uchar_t  id[ID_LEN];
-    uint16_t len;
-};
-
-#define GET_SPORT(a) 0x0f&(a >> 4)
-#define GET_DPORT(a) 0x0f&a
-
-
 // Application
 struct iperf {
+    uint32_t padding;
     uint32_t id;
 };
 
