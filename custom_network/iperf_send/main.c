@@ -149,7 +149,7 @@ int main(int argc, const char * argv[]) {
     time_now = time_start;
     
     sleep.tv_sec = 0;
-    sleep.tv_nsec = 10000;
+    sleep.tv_nsec = 28000; 
     
     for (i=1; time_now-time_start<10; i++) {
         
@@ -160,7 +160,7 @@ int main(int argc, const char * argv[]) {
         clock_gettime(CLOCK_REALTIME, &spec);
         time_now = spec.tv_sec + spec.tv_nsec / 1.0e9;
         
-        if (i%4 == 0) {
+        if (i%3 == 0) {
             nanosleep(&sleep, NULL);
         }
         
