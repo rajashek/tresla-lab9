@@ -34,15 +34,13 @@
 
 #include "interface.h"
 #include "route.h"
-#include "arp.h"
+//#include "arp.h"
 #include "utils.h"
 
 #define SNAP_LEN 1518
-#define SIZE_ETHERNET 14
+#define SIZE_ETHERNET 2
 #define SIZE_ICMP 8
-#define MAX_PORTS	2
-#define MAX_HOPS	2
-#define ID_LEN		3
+
 //#define _VERBOSE
 
 struct sniff_ethernet {
@@ -50,40 +48,13 @@ struct sniff_ethernet {
     u_char  ether_shost[ETHER_ADDR_LEN];    /* source host address */
     u_short ether_type;                     /* IP? ARP? RARP? etc */
 };
-struct tresla_layer3 {
-	uint8_t  ttl;
-	uint8_t  source_routing[MAX_HOPS];
-};
-
-struct tresla_layer4{
-	uint8_t  port; //sport + dport
-	u_char  id[ID_LEN];
-	uint16_t len;
-};
-
-#define SPORT(a) 0x0f&(a >> 4)
-#define DPORT(a) 0x0f&a
-
-
-
 
 struct sniff_ip {
-    u_char  ip_vhl;                 /* version << 4 | header length >> 2 */
-    u_char  ip_tos;                 /* type of service */
-    u_short ip_len;                 /* total length */
-    u_short ip_id;                  /* identification */
-    u_short ip_off;                 /* fragment offset field */
-    #define IP_RF 0x8000            /* reserved fragment flag */
-    #define IP_DF 0x4000            /* dont fragment flag */
-    #define IP_MF 0x2000            /* more fragments flag */
-    #define IP_OFFMASK 0x1fff       /* mask for fragmenting bits */
-    u_char  ip_ttl;                 /* time to live */
-    u_char  ip_p;                   /* protocol */
-    u_short ip_sum;                 /* checksum */
-    struct  in_addr ip_src,ip_dst;  /* source and dest address */
-};
-#define IP_HL(ip)               (((ip)->ip_vhl) & 0x0f)
-#define IP_V(ip)                (((ip)->ip_vhl) >> 4)
+    uint8_t type; 
+    uint8_t  ttl;
+    uint8_t  source_routing[MAX_HOPS];
+};    
+//#define IP_V(ip)                (((ip)->ip_vhl) >> 4)
 
 struct icmpheader
 {
@@ -95,16 +66,14 @@ struct icmpheader
 
 struct sniffer_thread_parameter {
     struct interface *sniff_interface;
-    int *num_routes;
     struct route **routes;
-    struct arp_linkedlist *arp_table_root;
+    int num_ifs;
 };
 
 struct got_packet_parameter {
     struct interface *sniff_interface;
-    int *num_routes;
     struct route **routes;
-    struct arp_linkedlist *arp_table_root;
+    int num_ifs;
 };
 
 void *sniffer_thread(void *params);
