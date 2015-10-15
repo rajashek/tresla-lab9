@@ -1,0 +1,26 @@
+set ns [new Simulator]
+source tb_compat.tcl
+# Nodes
+set rtr1 [$ns node]
+tb-set-hardware $rtr1 bpc2133
+set node1 [$ns node]
+tb-set-hardware $node1 bpc2133
+set node2 [$ns node]
+tb-set-hardware $node2 bpc2133
+set node3 [$ns node]  
+tb-set-hardware $node3 bpc2133    
+# Links
+set link0 [$ns duplex-link $node1 $rtr1 1000.0kb 200.0ms DropTail]
+tb-set-link-loss $link1 0.20
+tb-set-ip-link $rtr1 $link0 10.1.1.2
+tb-set-ip-link $node1 $link0 10.1.1.1
+set link1 [$ns duplex-link $rtr1 $node2 1000.0kb 200.0ms DropTail]
+tb-set-ip-link $rtr1 $link1 10.2.1.2
+tb-set-ip-link $node2 $link1 10.2.1.1
+set link2 [$ns duplex-link $rtr1 $node3 1000.0kb 200.0ms DropTail]
+tb-set-ip-link $rtr1 $link2 10.3.1.2
+tb-set-ip-link $node3 $link2 10.3.1.1
+
+$ns rtproto Manual
+$ns run 
+
