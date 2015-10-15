@@ -55,8 +55,8 @@ int main(int argc, const char * argv[]) {
         packetsize = atoi(argv[8]);
         datasize = packetsize - (sizeof(struct layer2) + sizeof(struct layer3) + sizeof(struct layer4_udp));
         if (datasize <= 0) {
-            packetsize = (sizeof(struct layer2) + sizeof(struct layer3) + sizeof(struct layer4_udp)) + 4;
-            datasize = 4;
+            packetsize = (sizeof(struct layer2) + sizeof(struct layer3) + sizeof(struct layer4_udp)) + sizeof(struct iperf);
+            datasize = sizeof(struct iperf);
         }
         
         printf("Datasize = %d\n", datasize);
@@ -148,8 +148,8 @@ int main(int argc, const char * argv[]) {
     time_start = spec.tv_sec + spec.tv_nsec / 1.0e9;
     time_now = time_start;
     
-    sleep.tv_sec = 0;
-    sleep.tv_nsec = 28000; 
+//    sleep.tv_sec = 0;
+//    sleep.tv_nsec = 28000; 
     
     for (i=1; time_now-time_start<10; i++) {
         
@@ -160,9 +160,9 @@ int main(int argc, const char * argv[]) {
         clock_gettime(CLOCK_REALTIME, &spec);
         time_now = spec.tv_sec + spec.tv_nsec / 1.0e9;
         
-        if (i%3 == 0) {
-            nanosleep(&sleep, NULL);
-        }
+//        if (i%3 == 0) {
+//            nanosleep(&sleep, NULL);
+//        }
         
     }
     
