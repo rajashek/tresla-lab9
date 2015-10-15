@@ -159,6 +159,7 @@ printf("file size %d\n",file_size);
         fprintf(stderr, "Error: Can not create a thread for the receiver_thread in init_receiver()\n");
         exit(4);
     }*/
+
 //  unsigned_char *buffer;
     size_t file_data_len;
     while (chunks_ack_count < total_chunks) {
