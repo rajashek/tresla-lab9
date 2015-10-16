@@ -92,3 +92,23 @@ void fill_interface_info(struct interface *inf) {
     
 }
 
+void fprintf_interface(FILE *out, struct interface *intf) {
+    fprintf(out, "%-5s %-6d %.2x:%.2x:%.2x:%.2x:%.2x:%.2x   %-15s\n",
+            intf->interface_name,
+            intf->interface_index,
+            intf->interface_macaddress[0],
+            intf->interface_macaddress[1],
+            intf->interface_macaddress[2],
+            intf->interface_macaddress[3],
+            intf->interface_macaddress[4],
+            intf->interface_macaddress[5],
+            ip_to_string(intf->interface_ipaddress)
+            );
+}
+
+char* ip_to_string(uint32_t ip) {
+    char *p;
+    p = (char *) malloc(sizeof(char) * 16);
+    sprintf(p, "%d.%d.%d.%d", ip & 0xff, (ip >> 8) & 0xff, (ip >> 16) & 0xff, (ip >> 24) & 0xff);
+    return p;
+}

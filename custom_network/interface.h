@@ -36,5 +36,7 @@ struct interface {
 
 //void print_interfaces();
 void fill_interface_info(struct interface *inf);
+void fprintf_interface(FILE *out, struct interface *intf);
+char* ip_to_string(uint32_t ip);
 
 #endif /* defined(__router__interface__) */
