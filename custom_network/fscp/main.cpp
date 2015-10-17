@@ -10,7 +10,7 @@
 #include <stdlib.h>
 
 #include <sys/stat.h>
-#include <libgen.h>
+#include <sys/resource.h>
 
 #include "../layers.h"
 #include "../interface.h"

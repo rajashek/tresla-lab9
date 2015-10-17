@@ -129,7 +129,7 @@ void init_sender(uchar_t *packet, uint16_t destaddr, uint8_t dport, uint8_t spor
     }
     
     tv.tv_sec = 0;
-    tv.tv_usec = 250*1000L;
+    tv.tv_usec = 400*1000L;
     setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
 
     // Bind socket
@@ -137,6 +137,25 @@ void init_sender(uchar_t *packet, uint16_t destaddr, uint8_t dport, uint8_t spor
         fprintf(stderr, "Error bind raw socket failed in init_sender()\n");
         exit(3);
     }
+    
+    // Seek to the beginning of the file
+    fseek(file, 0, SEEK_SET);
+    
+    // Prepare ACK receiver thread
+    struct ack_receiver_thread_parameter params;
+    params.sockfd = &sockfd;
+    params.chunks_ack_count = &chunks_ack_count;
+    params.total_chunks = &total_chunks;
+    params.chunk_id_first_unacked = &chunk_id_first_unacked;
+    params.required_acks = &required_acks;
+    params.chunks_ack = &chunks_ack;
+    params.chunk_cache = &chunk_cache[0];
+    params.chunk_cache_mutex = &chunk_cache_mutex;
+    
+    pthread_t thread;
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
     
     // Send the file information to the receiver
     while (true) {
@@ -186,26 +205,7 @@ void init_sender(uchar_t *packet, uint16_t destaddr, uint8_t dport, uint8_t spor
     fflush(stdout);
     #endif
     
-    
-    // Seek to the beginning of the file
-    fseek(file, 0, SEEK_SET);
-    
     // Start ACK receiver thread
-    struct ack_receiver_thread_parameter params;
-    params.sockfd = &sockfd;
-    params.chunks_ack_count = &chunks_ack_count;
-    params.total_chunks = &total_chunks;
-    params.chunk_id_first_unacked = &chunk_id_first_unacked;
-    params.required_acks = &required_acks;
-    params.chunks_ack = &chunks_ack;
-    params.chunk_cache = &chunk_cache[0];
-    params.chunk_cache_mutex = &chunk_cache_mutex;
-    
-    pthread_t thread;
-    pthread_attr_t attr;
-    pthread_attr_init(&attr);
-    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
-    
     if(pthread_create(&thread , &attr,  ack_receiver_thread, (void*) &params) < 0) {
         fprintf(stderr, "Error: Can not create a thread for the ack_receiver_thread in init_sender()\n");
         exit(4);

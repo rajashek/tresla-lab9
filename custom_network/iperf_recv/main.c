@@ -46,8 +46,8 @@ int main(int argc, const char * argv[]) {
     long double time_start, time_end;
     
     uchar_t *track;
-    track = (uchar_t *) malloc(0x500000);
-    memset(track, 0, 0x500000);
+    track = (uchar_t *) malloc(0x1000000);
+    memset(track, 0, 0x1000000);
     
     if (argc <= 4) {
         print_usage();
@@ -74,7 +74,7 @@ int main(int argc, const char * argv[]) {
     }
     
     /* open capture device */
-    handle = pcap_open_live(output_interface.interface_name, SNAP_LEN, 1, 0, errbuf);
+    handle = pcap_open_live(output_interface.interface_name, SNAP_LEN, 1, 1000000, errbuf);
     if (handle == NULL) {
         fprintf(stderr, "Couldn't open device %s: %s\n", output_interface.interface_name, errbuf);
         exit(EXIT_FAILURE);
@@ -97,6 +97,11 @@ int main(int argc, const char * argv[]) {
     while (1) {
         
         sniff_packet = pcap_next(handle, &header);
+        
+        if (header.len < sizeof(struct layer2) + sizeof(struct layer3) + sizeof(struct layer4_udp) + sizeof(struct iperf)) {
+            continue;
+        }
+        
         if (first) {
             clock_gettime(CLOCK_REALTIME, &spec);
             time_start = spec.tv_sec + spec.tv_nsec / 1.0e9;

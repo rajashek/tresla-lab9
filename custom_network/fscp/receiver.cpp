@@ -191,7 +191,7 @@ void init_receiver(uchar_t *packet, uint16_t srcaddr, uint8_t dport, struct inte
     while (chunks_ack_count < total_chunks) {
         
         recvlen = recv(sockfd, buffer, MTU, 0);
-        if ((recvlen != -1UL) && (recvlen >= header_length + FSCP_UDP_ID_BYTES)) {
+        if (likely((recvlen != -1UL) && (recvlen >= header_length + FSCP_UDP_ID_BYTES))) {
             
             memcpy(&chunk_id, buffer_payload, FSCP_UDP_ID_BYTES);
             if (likely(chunk_id > 0)) {
@@ -246,6 +246,8 @@ void init_receiver(uchar_t *packet, uint16_t srcaddr, uint8_t dport, struct inte
         fprintf(stdout, "[DEBUG] Send: FIN\n");
         #endif
     }
+    
+    close(sockfd);
     
     pthread_join(thread, NULL);
 

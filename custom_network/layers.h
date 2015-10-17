@@ -45,6 +45,7 @@ struct layer4_udp {
     uint8_t  dport;
     uint8_t  sport;
     uint16_t len;
+    uint8_t  padding[4];
 };
 
 // Application
